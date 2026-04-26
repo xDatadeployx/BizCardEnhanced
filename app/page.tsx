@@ -1,6 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { supabase } from "@/lib/supabase";
+
+// 1. Import the function, not the variable
+import { createClient } from "@/lib/supabase"; 
 import { useEffect, useState } from "react";
 
 const EMPTY_FORM = {
@@ -8,6 +10,9 @@ const EMPTY_FORM = {
 };
 
 export default function Page() {
+  // 2. Initialize the client inside the component
+  const supabase = createClient(); 
+
   const [cards, setCards] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -23,25 +28,28 @@ export default function Page() {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
     };
+
     const fetchData = async () => {
       const [cardsRes, catsRes] = await Promise.all([
         supabase.from("cards").select("*"),
         supabase.from("categories").select("*"),
       ]);
+
       if (!catsRes.error && catsRes.data && !cardsRes.error && cardsRes.data) {
         const catMap = Object.fromEntries(catsRes.data.map((cat) => [cat.id, cat]));
-       const merged = cardsRes.data.map((card) => ({
-  ...card,
-  category: catMap[card.category_id] ?? null, // Use singular 'category'
-}));
+        const merged = cardsRes.data.map((card) => ({
+          ...card,
+          category: catMap[card.category_id] ?? null, 
+        }));
         setCards(merged);
         setCategories(catsRes.data);
       }
       setLoading(false);
     };
+
     getUser();
     fetchData();
-  }, []);
+  }, [supabase]);
 
   const handleEditClick = (card: any) => {
     setEditingId(card.id);
