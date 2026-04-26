@@ -30,9 +30,10 @@ export default function Page() {
       ]);
       if (!catsRes.error && catsRes.data && !cardsRes.error && cardsRes.data) {
         const catMap = Object.fromEntries(catsRes.data.map((cat) => [cat.id, cat]));
-        const merged = cardsRes.data.map((card) => ({
-          ...card, categories: catMap[card.category_id] ?? null,
-        }));
+       const merged = cardsRes.data.map((card) => ({
+  ...card,
+  category: catMap[card.category_id] ?? null, // Use singular 'category'
+}));
         setCards(merged);
         setCategories(catsRes.data);
       }
@@ -55,7 +56,7 @@ export default function Page() {
   };
 
   const handleAdd = async () => {
-    const cat = categories.find((c) => c.id === addFormData.category_id) ?? null;
+    const selectedCat = categories.find((c) => c.id === addFormData.category_id) ?? null;
     const { name, title, business, email, phone, website, category_id } = addFormData;
     if (!name.trim()) return alert("Name is required.");
     setAdding(true);
@@ -63,7 +64,8 @@ export default function Page() {
       .insert([{ name, title, business, email, phone, website, category_id: category_id || null }])
       .select(`*, categories (name, color_hex)`).single();
     if (error) { alert(`Add failed: ${error.message}`); }
-    else { setCards([...cards, { ...data, categories: cat }]); setAddFormData(EMPTY_FORM); setShowAddForm(false); }
+    else { 
+  setCards([...cards, { ...data, category: selectedCat }]); setAddFormData(EMPTY_FORM); setShowAddForm(false); }
     setAdding(false);
   };
 
@@ -162,16 +164,16 @@ export default function Page() {
             const avatarUrl = `https://api.dicebear.com/7.x/personas/svg?seed=${card.id}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
             return (
               <div key={card.id} className="group relative flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden transition-all duration-300 hover:shadow-xl">
-                <div className="h-2 w-full" style={{ backgroundColor: card.categories?.color_hex ?? "#94a3b8" }} />
+                <div className="h-2 w-full" style={{ backgroundColor: card.category?.color_hex ?? "#94a3b8" }} />
                 <div className="p-6 flex flex-col h-full">
                   <div className="flex justify-between items-start mb-4">
                     <div className="h-16 w-16 rounded-full overflow-hidden bg-slate-100 ring-2 ring-white shadow-sm">
                       <img src={avatarUrl} alt={card.name} className="h-full w-full object-cover" />
                     </div>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white shadow-sm"
-                      style={{ backgroundColor: card.categories?.color_hex ?? "#94a3b8" }}>
-                      {card.categories?.name ?? "Uncategorized"}
-                    </span>
+                    <span className="inline-flex items-center ... "
+  style={{ backgroundColor: card.category?.color_hex ?? "#94a3b8" }}>
+  {card.category?.name ?? "Uncategorized"}
+</span>
                   </div>
                   {isEditing ? (
                     <div className="space-y-2 mb-4">
