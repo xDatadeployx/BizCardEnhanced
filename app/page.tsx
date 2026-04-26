@@ -29,11 +29,14 @@ export default function Page() {
       setUser(user);
     };
 
-    const fetchData = async () => {
-      const [cardsRes, catsRes] = await Promise.all([
-        supabase.from("cards").select("*"),
-        supabase.from("categories").select("*"),
-      ]);
+const fetchData = async () => {
+  const [cardsRes, catsRes] = await Promise.all([
+    supabase.from("cards").select("*"),
+    supabase.from("categories").select("*"),
+  ]);
+
+  console.log("Raw Cards:", cardsRes.data);
+  console.log("Raw Categories:", catsRes.data);
 
       if (!catsRes.error && catsRes.data && !cardsRes.error && cardsRes.data) {
         const catMap = Object.fromEntries(catsRes.data.map((cat) => [cat.id, cat]));
