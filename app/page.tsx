@@ -61,7 +61,7 @@ export default function Page() {
     setAdding(true);
     const { data, error } = await supabase.from("cards")
       .insert([{ name, title, business, email, phone, website, category_id: category_id || null }])
-      .select(`*, categories (name, color_hex)`).single();
+      .select(`*, categories (name, color)`).single();
     if (error) { alert(`Add failed: ${error.message}`); }
     else { setCards([...cards, { ...data, categories: cat }]); setAddFormData(EMPTY_FORM); setShowAddForm(false); }
     setAdding(false);
