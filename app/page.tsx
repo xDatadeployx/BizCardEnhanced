@@ -5,6 +5,11 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+// Add to your state declarations:
+const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+const [deleting, setDeleting] = useState(false);
+
 const EMPTY_FORM = {
 name: "",
 title: "",
@@ -56,6 +61,26 @@ getUser();
 fetchData();
 }, []);
 // --- Handlers ---
+
+// Add the delete handler:
+const handleDelete = async () => {
+  if (!deleteTarget) return;
+  setDeleting(true);
+  if (deleteTarget.profile_photo_url) {
+    const path = deleteTarget.profile_photo_url.split('/profile-photos/')[1];
+    if (path) await supabase.storage.from('profile-photos').remove([path]);
+  }
+  const { error } = await supabase.from('cards').delete().eq('id', deleteTarget.id);
+  if (error) {
+    toast.error('Delete failed: ' + error.message, { duration: 6000 });
+  } else {
+    setCards(cards.filter((c) => c.id !== deleteTarget.id));
+    toast.success(`${deleteTarget.name}'s card has been deleted.`);
+  }
+  setDeleteTarget(null);
+  setDeleting(false);
+};
+
 const handleEditClick = (card: any) => {
 setEditingId(card.id);
 setEditFormData({ ...card });
@@ -367,8 +392,15 @@ hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50"
 cols-4">
 {cards?.map((card) => {
 const isEditing = editingId === card.id;
-const avatarUrl =
-`https://api.dicebear.com/7.x/personas/svg?seed=${card.id}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+const avatarUrl = card.profile_photo_url ||
+  `https://api.dicebear.com/7.x/personas/svg?seed=${card.id}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+
+{user && (
+  <button onClick={() => setDeleteTarget(card)}
+    className="mt-2 text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-100 font-bold uppercase hover:bg-red-600 hover:text-white transition-colors">
+    Delete
+  </button>
+)}
 return (
 <div
 key={card.id}
@@ -542,6 +574,26 @@ className="flex items-center text-xs text-blue-500 font-medium"
 })}
 </div>
 </div>
+{deleteTarget && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full">
+      <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Business Card</h3>
+      <p className="text-slate-500 text-sm mb-6">
+        Are you sure you want to delete <strong>{deleteTarget.name}</strong>'s card? This action cannot be undone.
+      </p>
+      <div className="flex justify-end gap-3">
+        <button onClick={() => setDeleteTarget(null)}
+          className="px-5 py-2 rounded-full text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+          Cancel
+        </button>
+        <button onClick={handleDelete} disabled={deleting}
+          className="px-5 py-2 rounded-full text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50">
+          {deleting ? "Deleting..." : "Delete"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 </main>
 );
 }
