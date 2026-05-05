@@ -6,9 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-// Add to your state declarations:
-const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
-const [deleting, setDeleting] = useState(false);
+
 
 const EMPTY_FORM = {
 name: "",
@@ -24,6 +22,9 @@ const [cards, setCards] = useState<any[]>([]);
 const [categories, setCategories] = useState<any[]>([]);
 const [user, setUser] = useState<any>(null);
 const [loading, setLoading] = useState(true);
+// Add to your state declarations:
+const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+const [deleting, setDeleting] = useState(false);
 // Edit state
 const [editingId, setEditingId] = useState<string | null>(null);
 const [editFormData, setEditFormData] = useState<any>({});
