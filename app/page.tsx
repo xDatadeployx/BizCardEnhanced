@@ -417,12 +417,6 @@ const isEditing = editingId === card.id;
 const avatarUrl = card.profile_photo_url ||
   `https://api.dicebear.com/7.x/personas/svg?seed=${card.id}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
 
-{user && (
-  <button onClick={() => setDeleteTarget(card)}
-    className="mt-2 text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-100 font-bold uppercase hover:bg-red-600 hover:text-white transition-colors">
-    Delete
-  </button>
-)}
 return (
 <div
 key={card.id}
@@ -569,6 +563,12 @@ border border-blue-100 font-bold uppercase hover:bg-blue-500 hover:text-white tr
 >
 Edit Card
 </button>
+)}
+{user && (
+  <button onClick={() => setDeleteTarget(card)}
+    className="mt-2 text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-100 font-bold uppercase hover:bg-red-600 hover:text-white transition-colors">
+    Delete
+  </button>
 )}
 </div>
 )}
