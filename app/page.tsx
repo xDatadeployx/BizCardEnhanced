@@ -195,6 +195,26 @@ Professional Directory
 <p className="mt-4 text-xl text-slate-600">
 Connecting experts across {cards?.length || 0} unique businesses.
 </p>
+{/* ✅ BUTTON ROW */}
+  <div className="mt-6 flex justify-center gap-4 flex-wrap">
+
+    {/* 🌐 Visible to EVERYONE */}
+    <Link
+      href="/submit"
+      className="inline-flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded-full font-semibold shadow-sm hover:bg-green-700 transition-all"
+    >
+      Submit a Card
+    </Link>
+
+    {/* 🔒 Only visible when logged in */}
+    {user && (
+      <Link
+        href="/admin/submissions"
+        className="inline-flex items-center gap-2 bg-purple-600 text-white px-6 py-2.5 rounded-full font-semibold shadow-sm hover:bg-purple-700 transition-all"
+      >
+        Admin Dashboard
+      </Link>
+    )}
 {user && (
 <button
 onClick={() => {
@@ -210,6 +230,7 @@ rounded-full font-semibold shadow-sm hover:bg-blue-700 transition-all"
 {showAddForm ? "Cancel" : "Add Business Card"}
 </button>
 )}
+</div>
 </header>
 {/* Add Card Form */}
 {user && showAddForm && (
