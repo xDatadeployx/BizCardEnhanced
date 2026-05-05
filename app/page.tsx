@@ -1,5 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
+
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 const EMPTY_FORM = {
@@ -121,10 +123,18 @@ return (
 <main className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
 <div className="max-w-7xl mx-auto">
 {/* Auth Bar */}
+
 <nav className="flex justify-end mb-8">
 {user ? (
 <div className="flex items-center gap-4 bg-white p-2 px-4 rounded-full shadow-sm border
 border-slate-200">
+{/* 👇 NEW ADMIN LINK */}
+      <Link
+        href="/admin/submissions"
+        className="text-xs font-bold text-blue-600 hover:text-blue-800 uppercase tracking-wider"
+      >
+        Admin
+      </Link>
 <span className="text-sm font-medium text-slate-700">
 {user.email}
 </span>
