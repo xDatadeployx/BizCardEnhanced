@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 const EMPTY_FORM = {
 name: "",
 title: "",
@@ -66,7 +67,7 @@ const { error } = await supabase
 .update({ name, title, business, email, phone, website })
 .eq("id", id);
 if (error) {
-alert(`Update failed: ${error.message}`);
+toast.error(`Update failed: ${error.message}`, { duration: 6000 })
 } else {
 setCards(cards.map((c) => (c.id === id ? { ...c, ...editFormData } : c)));
 setEditingId(null);
@@ -77,7 +78,7 @@ const cat =
 categories.find((c) => c.id === addFormData.category_id) ?? null;
 const { name, title, business, email, phone, website, category_id } =
 addFormData;
-if (!name.trim()) return alert("Name is required.");
+if (!name.trim()) return toast.error("Name is required.")
 setAdding(true);
 const { data, error } = await supabase
 .from("cards")
