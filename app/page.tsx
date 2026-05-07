@@ -483,13 +483,13 @@ export default function Page() {
                       <span className="mr-2 text-slate-400">📞</span> {card.phone}
                     </p>
                     
-                      href={`https://${card.website}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center text-xs text-blue-500 font-medium"
-                    >
-                      <span className="mr-2 opacity-70">🌐</span> {card.website}
-                    </a>
+  href={`https://${card.website}`}
+  target="_blank"
+  rel="noreferrer"
+  className="flex items-center text-xs text-blue-500 font-medium"
+>
+  <span className="mr-2 opacity-70">🌐</span> {card.website}
+</a>
                   </div>
                 </div>
               </div>
