@@ -3,7 +3,6 @@ import { NextRequest } from "next/server";
 export async function POST(req: NextRequest) {
   const { name, title, business, category } = await req.json();
 
-  // Validate required fields
   if (!name || !title || !business) {
     return new Response(
       JSON.stringify({ error: "name, title, and business are required" }),
@@ -20,9 +19,8 @@ export async function POST(req: NextRequest) {
   }
 
   const categoryClause = category ? ` in the ${category} industry` : "";
-  const prompt = `Write a 2–3 sentence professional bio in third person for ${name}, who works as a ${title} at ${business}${categoryClause}. The bio should be polished, concise, and suitable for a business directory. Do not include any preamble, explanation, or formatting — output only the bio text itself.`;
+  const prompt = `Write a 2–3 sentence professional bio in third person for ${name}, who works as a ${title} at ${business}${categoryClause}. The bio should be polished, concise, and suitable for a business directory. Output only the bio text itself — no preamble, explanation, or formatting.`;
 
-  // Call DeepSeek with streaming enabled
   const deepseekRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -44,8 +42,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Transform the SSE stream from DeepSeek into a plain-text stream
-  // with a typewriter effect: each character is sent with a 30 ms delay.
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
@@ -54,8 +50,7 @@ export async function POST(req: NextRequest) {
       const reader = deepseekRes.body!.getReader();
       let buffer = "";
 
-      const delay = (ms: number) =>
-        new Promise((resolve) => setTimeout(resolve, ms));
+      const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
       try {
         while (true) {
@@ -63,8 +58,6 @@ export async function POST(req: NextRequest) {
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-
-          // DeepSeek sends newline-delimited SSE chunks
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
 
@@ -78,13 +71,12 @@ export async function POST(req: NextRequest) {
               const delta = json.choices?.[0]?.delta?.content;
               if (!delta) continue;
 
-              // Typewriter: emit one character at a time with a 30 ms gap
               for (const char of delta) {
                 controller.enqueue(encoder.encode(char));
                 await delay(30);
               }
             } catch {
-              // Malformed JSON chunk — skip silently
+              // malformed chunk — skip
             }
           }
         }
