@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const EMPTY_FORM = {
@@ -14,8 +14,156 @@ const EMPTY_FORM = {
   phone: "",
   website: "",
   category_id: "",
+  bio: "",
 };
 
+// ─── Bio textarea with mirror-div auto-grow ───────────────────────────────────
+// An invisible mirror div underneath drives the height; the textarea sits on
+// top absolutely-positioned. No useEffect, no scrollHeight reads, no jitter.
+function BioTextarea({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const shared =
+    "w-full text-sm border border-slate-200 rounded-lg px-3 py-2 font-[inherit] leading-relaxed resize-none";
+
+  return (
+    <div className="grid w-full">
+      {/* Mirror div — invisible, drives height */}
+      <div
+        aria-hidden="true"
+        className={`${shared} invisible pointer-events-none whitespace-pre-wrap break-words`}
+        style={{ gridArea: "1/1", minHeight: "5rem" }}
+      >
+        {value + "\u200b"}
+      </div>
+      {/* Actual textarea — sits on top, absolutely fills the mirror */}
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Bio will appear here…"
+        className={`${shared} overflow-hidden outline-none focus:ring-2 focus:ring-blue-500`}
+        style={{ gridArea: "1/1", position: "absolute", top: 0, left: 0, height: "100%" }}
+      />
+    </div>
+  );
+}
+
+// ─── Per-card bio with 3-line clamp + expand/collapse ────────────────────────
+function CardBio({ bio }: { bio: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setOverflows(el.scrollHeight > el.clientHeight + 1);
+  }, [bio]);
+
+  return (
+    <div className="mt-2">
+      <p
+        ref={ref}
+        className="text-xs text-slate-500 leading-relaxed"
+        style={{
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: expanded ? "unset" : 3,
+          overflow: expanded ? "visible" : "hidden",
+        }}
+      >
+        {bio}
+      </p>
+      {(overflows || expanded) && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-[10px] text-blue-500 hover:text-blue-700 font-medium mt-0.5"
+        >
+          {expanded ? "less" : "... more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── ✨ Generate Bio button ───────────────────────────────────────────────────
+function GenerateBioButton({
+  formData,
+  categoryName,
+  onStream,
+}: {
+  formData: any;
+  categoryName?: string;
+  onStream: (chunk: string, reset: boolean) => void;
+}) {
+  const [generating, setGenerating] = useState(false);
+  const canGenerate =
+    formData.name?.trim() && formData.title?.trim() && formData.business?.trim();
+
+  const handleGenerate = async () => {
+    if (!canGenerate || generating) return;
+    setGenerating(true);
+    onStream("", true); // clear existing bio
+
+    try {
+      const res = await fetch("/api/generate-bio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          title: formData.title,
+          business: formData.business,
+          category: categoryName ?? "",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error ?? "Failed to generate bio", { duration: 6000 });
+        return;
+      }
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        onStream(decoder.decode(value, { stream: true }), false);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Network error while generating bio.", { duration: 6000 });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleGenerate}
+      disabled={!canGenerate || generating}
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all
+        disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed
+        enabled:bg-purple-600 enabled:text-white enabled:hover:bg-purple-700 enabled:shadow-sm"
+    >
+      {generating ? (
+        <>
+          <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+          Generating…
+        </>
+      ) : (
+        <>✨ Generate Bio</>
+      )}
+    </button>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Page() {
   const [cards, setCards] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -77,39 +225,41 @@ export default function Page() {
 
   const handleEditClick = (card: any) => {
     setEditingId(card.id);
-    setEditFormData({ ...card });
+    setEditFormData({ ...card, bio: card.bio ?? "" });
   };
 
   const handleSave = async (id: string) => {
-    const { name, title, business, email, phone, website } = editFormData;
+    const { name, title, business, email, phone, website, bio } = editFormData;
     const { error } = await supabase
       .from("cards")
-      .update({ name, title, business, email, phone, website })
+      .update({ name, title, business, email, phone, website, bio })
       .eq("id", id);
     if (error) {
       toast.error(`Update failed: ${error.message}`, { duration: 6000 });
     } else {
       setCards(cards.map((c) => (c.id === id ? { ...c, ...editFormData } : c)));
       setEditingId(null);
+      toast.success("Card updated.");
     }
   };
 
   const handleAdd = async () => {
     const cat = categories.find((c) => c.id === addFormData.category_id) ?? null;
-    const { name, title, business, email, phone, website, category_id } = addFormData;
+    const { name, title, business, email, phone, website, category_id, bio } = addFormData;
     if (!name.trim()) return toast.error("Name is required.");
     setAdding(true);
     const { data, error } = await supabase
       .from("cards")
-      .insert([{ name, title, business, email, phone, website, category_id: category_id || null }])
+      .insert([{ name, title, business, email, phone, website, category_id: category_id || null, bio }])
       .select(`*, categories (name, color_hex)`)
       .single();
     if (error) {
-      alert(`Add failed: ${error.message}`);
+      toast.error(`Add failed: ${error.message}`, { duration: 6000 });
     } else {
       setCards([...cards, { ...data, categories: cat }]);
       setAddFormData(EMPTY_FORM);
       setShowAddForm(false);
+      toast.success(`${name}'s card has been added.`);
     }
     setAdding(false);
   };
@@ -137,6 +287,7 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+
         {/* Auth Bar */}
         <nav className="flex justify-end mb-8">
           {user ? (
@@ -204,7 +355,7 @@ export default function Page() {
           </div>
         </header>
 
-        {/* Add Card Form */}
+        {/* ── Add Card Form ─────────────────────────────────────────────────── */}
         {user && showAddForm && (
           <div className="mb-12 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-2xl mx-auto">
             <h2 className="text-lg font-bold text-slate-900 mb-6">New Business Card</h2>
@@ -306,7 +457,38 @@ export default function Page() {
                   placeholder="example.com"
                 />
               </div>
+
+              {/* ── Bio field ── */}
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Bio
+                  </label>
+                  <GenerateBioButton
+                    formData={addFormData}
+                    categoryName={categories.find((c) => c.id === addFormData.category_id)?.name}
+                    onStream={(chunk, reset) =>
+                      setAddFormData((prev: any) => ({
+                        ...prev,
+                        bio: reset ? chunk : prev.bio + chunk,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="relative">
+                  <BioTextarea
+                    value={addFormData.bio}
+                    onChange={(v) => setAddFormData({ ...addFormData, bio: v })}
+                  />
+                </div>
+                {!(addFormData.name?.trim() && addFormData.title?.trim() && addFormData.business?.trim()) && (
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Fill in Name, Title, and Business to enable AI bio generation.
+                  </p>
+                )}
+              </div>
             </div>
+
             {addFormData.name.trim() && (
               <div className="mt-5 flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <img
@@ -366,7 +548,7 @@ export default function Page() {
           ))}
         </div>
 
-        {/* Cards Grid */}
+        {/* ── Cards Grid ───────────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 gap-y-10 gap-x-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCards.map((card) => {
             const isEditing = editingId === card.id;
@@ -397,6 +579,7 @@ export default function Page() {
                   </div>
 
                   {isEditing ? (
+                    /* ── Edit mode ── */
                     <div className="space-y-2 mb-4">
                       <input
                         className="w-full text-sm border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -434,6 +617,32 @@ export default function Page() {
                         onChange={(e) => setEditFormData({ ...editFormData, website: e.target.value })}
                         placeholder="Website"
                       />
+
+                      {/* ── Bio field (Edit mode) ── */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Bio
+                          </span>
+                          <GenerateBioButton
+                            formData={editFormData}
+                            categoryName={editFormData.categories?.name ?? ""}
+                            onStream={(chunk, reset) =>
+                              setEditFormData((prev: any) => ({
+                                ...prev,
+                                bio: reset ? chunk : (prev.bio ?? "") + chunk,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="relative">
+                          <BioTextarea
+                            value={editFormData.bio ?? ""}
+                            onChange={(v) => setEditFormData({ ...editFormData, bio: v })}
+                          />
+                        </div>
+                      </div>
+
                       <div className="flex gap-2 pt-2">
                         <button
                           onClick={() => handleSave(card.id)}
@@ -450,12 +659,17 @@ export default function Page() {
                       </div>
                     </div>
                   ) : (
+                    /* ── Display mode ── */
                     <div className="mb-4">
                       <h3 className="text-lg font-bold text-slate-900">{card.name}</h3>
                       <p className="text-sm font-medium text-slate-500 italic">{card.title}</p>
                       <p className="mt-1 text-sm font-semibold text-slate-700 uppercase tracking-tight">
                         {card.business}
                       </p>
+
+                      {/* Bio with 3-line clamp + per-card expand/collapse */}
+                      {card.bio && <CardBio bio={card.bio} />}
+
                       {user && (
                         <button
                           onClick={() => handleEditClick(card)}
@@ -482,14 +696,14 @@ export default function Page() {
                     <p className="flex items-center text-xs text-slate-600">
                       <span className="mr-2 text-slate-400">📞</span> {card.phone}
                     </p>
-                    
-  <a href={`https://${card.website}`}
-  target="_blank"
-  rel="noreferrer"
-  className="flex items-center text-xs text-blue-500 font-medium"
->
-  <span className="mr-2 opacity-70">🌐</span> {card.website}
-</a>
+                    <a
+                      href={`https://${card.website}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center text-xs text-blue-500 font-medium"
+                    >
+                      <span className="mr-2 opacity-70">🌐</span> {card.website}
+                    </a>
                   </div>
                 </div>
               </div>
